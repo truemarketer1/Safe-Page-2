@@ -1,0 +1,13 @@
+FROM python:3.11-slim
+
+WORKDIR /srv
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+
+COPY compliance_gate/pyproject.toml /srv/compliance_gate/pyproject.toml
+RUN pip install --no-cache-dir -e /srv/compliance_gate
+
+COPY compliance_gate /srv/compliance_gate
+WORKDIR /srv/compliance_gate
+
+EXPOSE 8000
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
