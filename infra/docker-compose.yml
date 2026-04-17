@@ -1,0 +1,40 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: crm
+    ports: ["5432:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./migrations:/migrations:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  crm_core:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.crm_core
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/crm
+      API_AUTH_TOKEN: ${API_AUTH_TOKEN:-dev-insecure-token}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      META_APP_SECRET: ${META_APP_SECRET:-}
+      CAL_WEBHOOK_SECRET: ${CAL_WEBHOOK_SECRET:-}
+      RETELL_WEBHOOK_SECRET: ${RETELL_WEBHOOK_SECRET:-}
+      MANYCHAT_WEBHOOK_SECRET: ${MANYCHAT_WEBHOOK_SECRET:-}
+      LOG_LEVEL: INFO
+    ports: ["8000:8000"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+volumes:
+  pgdata:
