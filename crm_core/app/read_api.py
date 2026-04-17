@@ -125,3 +125,41 @@ def refresh_views() -> dict[str, str]:
             # CONCURRENTLY needs an initial non-concurrent refresh once.
             execute(f"REFRESH MATERIALIZED VIEW {view}")
     return {"status": "refreshed"}
+
+
+@router.post("/admin/content", response_model=ContentAsset,
+             dependencies=[Depends(require_token)])
+def record_content(body: dict) -> ContentAsset:
+    """Create or update a content_assets row. Called by the content pipeline
+    after a Reel is successfully posted to Instagram."""
+    from datetime import datetime
+
+    from .db import conn
+
+    hook_text = body.get("hook_text")
+    if not hook_text:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "hook_text required")
+    with conn() as c, c.cursor() as cur:
+        cur.execute(
+            """INSERT INTO content_assets
+                 (hook_text, hook_framework, cta_keyword, r2_video_url,
+                  ig_media_id, ig_permalink, status, posted_at)
+               VALUES (%s, %s, %s, %s, %s, %s,
+                       CASE WHEN %s IS NOT NULL THEN 'posted'::content_status
+                            ELSE 'ready'::content_status END,
+                       CASE WHEN %s IS NOT NULL THEN now() ELSE NULL END)
+               RETURNING *""",
+            (
+                hook_text,
+                body.get("hook_framework"),
+                body.get("cta_keyword"),
+                body.get("r2_video_url"),
+                body.get("ig_media_id"),
+                body.get("permalink"),
+                body.get("ig_media_id"),
+                body.get("ig_media_id"),
+            ),
+        )
+        row = cur.fetchone()
+        assert row is not None
+        return ContentAsset(**row)
