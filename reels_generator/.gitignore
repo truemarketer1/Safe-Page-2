@@ -1,0 +1,8 @@
+.env
+.hook_cache/
+output/
+__pycache__/
+*.pyc
+.pytest_cache/
+core_message.mp4
+hooks.csv

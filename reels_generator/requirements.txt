@@ -1,0 +1,4 @@
+# Core pipeline has zero runtime dependencies beyond ffmpeg on PATH.
+# Install these only if you want to pull hooks from Google Sheets.
+google-api-python-client>=2.120.0
+google-auth>=2.28.0

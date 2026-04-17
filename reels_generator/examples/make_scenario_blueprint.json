@@ -1,0 +1,126 @@
+{
+  "name": "Reels Hook Generator - Sheet to HeyGen to Drive",
+  "flow": [
+    {
+      "id": 1,
+      "module": "google-sheets:watchRows",
+      "version": 5,
+      "parameters": {
+        "__IMTCONN__": "google-sheets-connection"
+      },
+      "mapper": {
+        "mode": "select",
+        "spreadsheetId": "YOUR_SHEET_ID",
+        "sheetId": "Sheet1",
+        "tableFirstRow": "A1:B1",
+        "includesHeaders": true,
+        "limit": "20"
+      },
+      "metadata": {
+        "designer": {"x": 0, "y": 0},
+        "restore": {"parameters": {"__IMTCONN__": {"label": "Google Sheets"}}}
+      }
+    },
+    {
+      "id": 2,
+      "module": "http:ActionSendDataAdvanced",
+      "version": 3,
+      "parameters": {
+        "handleErrors": true,
+        "useNewZLibDeCompress": true
+      },
+      "mapper": {
+        "url": "https://api.heygen.com/v2/video/generate",
+        "method": "POST",
+        "headers": [
+          {"name": "X-Api-Key", "value": "{{env.HEYGEN_API_KEY}}"},
+          {"name": "Content-Type", "value": "application/json"}
+        ],
+        "bodyType": "raw",
+        "contentType": "application/json",
+        "data": "{\"video_inputs\":[{\"character\":{\"type\":\"avatar\",\"avatar_id\":\"{{env.HEYGEN_AVATAR_ID}}\",\"avatar_style\":\"normal\"},\"voice\":{\"type\":\"text\",\"input_text\":\"{{1.hook}}\",\"voice_id\":\"{{env.HEYGEN_VOICE_ID}}\"}}],\"dimension\":{\"width\":1080,\"height\":1920}}",
+        "parseResponse": true
+      },
+      "metadata": {"designer": {"x": 300, "y": 0}}
+    },
+    {
+      "id": 3,
+      "module": "util:Sleep",
+      "version": 1,
+      "parameters": {"duration": 20},
+      "metadata": {"designer": {"x": 600, "y": 0}}
+    },
+    {
+      "id": 4,
+      "module": "http:ActionSendDataAdvanced",
+      "version": 3,
+      "parameters": {},
+      "mapper": {
+        "url": "https://api.heygen.com/v1/video_status.get?video_id={{2.data.video_id}}",
+        "method": "GET",
+        "headers": [
+          {"name": "X-Api-Key", "value": "{{env.HEYGEN_API_KEY}}"}
+        ],
+        "parseResponse": true
+      },
+      "metadata": {"designer": {"x": 900, "y": 0}}
+    },
+    {
+      "id": 5,
+      "module": "builtin:BasicRepeater",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "repeats": 30,
+        "interval": 10,
+        "condition": "{{4.data.status}} = completed"
+      },
+      "metadata": {"designer": {"x": 1200, "y": 0}}
+    },
+    {
+      "id": 6,
+      "module": "http:ActionGetFile",
+      "version": 3,
+      "parameters": {},
+      "mapper": {
+        "url": "{{4.data.video_url}}"
+      },
+      "metadata": {"designer": {"x": 1500, "y": 0}}
+    },
+    {
+      "id": 7,
+      "module": "google-drive:uploadAFile",
+      "version": 3,
+      "parameters": {
+        "__IMTCONN__": "google-drive-connection"
+      },
+      "mapper": {
+        "folderId": "YOUR_DRIVE_FOLDER_ID",
+        "filename": "hook_{{1.__ROW_NUMBER__}}.mp4",
+        "data": "{{6.data}}"
+      },
+      "metadata": {"designer": {"x": 1800, "y": 0}}
+    }
+  ],
+  "metadata": {
+    "instant": false,
+    "version": 1,
+    "scenario": {
+      "roundtrips": 1,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "autoCommitTriggerLast": true,
+      "sequential": false,
+      "confidential": false,
+      "dataloss": false,
+      "dlq": false,
+      "freshVariables": false
+    },
+    "designer": {"orphans": []},
+    "zone": "us1.make.com",
+    "notes": [
+      "Replace YOUR_SHEET_ID, YOUR_DRIVE_FOLDER_ID, and env vars before activating.",
+      "The HeyGen render is async. The polling loop waits until status=completed before downloading."
+    ]
+  }
+}
